@@ -18,25 +18,27 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// load all safely
+// 🔁 Load all command files dynamically
 const commandsPath = path.join(process.cwd(), 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-for (const file of commandFiles) {
-  const command = await import(`./commands/${file}`);
-  if (!command.data || !command.data.name) {
-    console.warn(`⚠️ Skipping ${file} — missing data or name`);
-    continue;
+(async () => {
+  for (const file of commandFiles) {
+    const command = await import(`./commands/${file}`);
+    if (!command.data || !command.data.name) {
+      console.warn(`⚠️ Skipping ${file} — missing data or name`);
+      continue;
+    }
+    client.commands.set(command.data.name, command);
   }
-  client.commands.set(command.data.name, command);
-}
+})();
 
-// bot ready
+// ✅ Bot ready
 client.once('ready', () => {
   console.log(`🤖 Sithis is online as ${client.user.tag}`);
 });
 
-// handler
+// 🧠 Handle interactions
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
@@ -45,7 +47,7 @@ client.on('interactionCreate', async interaction => {
     try {
       await command.execute(interaction);
     } catch (error) {
-      console.error(error);
+      console.error(`❌ Error executing ${interaction.commandName}:`, error);
       await interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
     }
   }
@@ -59,18 +61,17 @@ client.on('interactionCreate', async interaction => {
       ephemeral: true
     });
 
-    // optional
+    // Optional: log appeal to DB or mod channel
   }
 });
 
-// welcome
+// 👋 Welcome new members with cinematic embed
 client.on('guildMemberAdd', async member => {
-  const channelId = '1440498648482975857';
+  const channelId = '1440498648482975857'; // Replace with your actual welcome channel ID
   const channel = member.guild.channels.cache.get(channelId);
   if (!channel) return;
 
   const memberCount = member.guild.memberCount;
-
   const welcomeText = `Welcome <@${member.id}> to **Sithis**.\nYou are the **${memberCount}ᵗʰ** soul to be judged.`;
 
   const embed = {
@@ -83,7 +84,7 @@ client.on('guildMemberAdd', async member => {
   await channel.send({ content: welcomeText, embeds: [embed] });
 });
 
-// conect
+// 🔗 Connect to MongoDB and login
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');

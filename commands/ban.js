@@ -15,7 +15,7 @@ export async function execute(interaction) {
   const member = await interaction.guild.members.fetch(target.id);
 
   try {
-    // DM the user before banning
+    // dm the user before bam
     await target.send(
       `⚠️ You have been banned.\n\n` +
       `You were banned from **${interaction.guild.name}** by **${interaction.user.tag}**\n\n` +

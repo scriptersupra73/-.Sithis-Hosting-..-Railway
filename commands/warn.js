@@ -3,30 +3,34 @@ import Case from '../models/Case.js';
 
 export const data = new SlashCommandBuilder()
   .setName('warn')
-  .setDescription('Warn a user and log the case')
-  .addUserOption(opt => opt.setName('user').setDescription('User to warn').setRequired(true))
-  .addStringOption(opt => opt.setName('reason').setDescription('Reason for warning'));
+  .setDescription('Warn a member')
+  .addUserOption(option =>
+    option.setName('target').setDescription('User to warn').setRequired(true))
+  .addStringOption(option =>
+    option.setName('reason').setDescription('Reason for warning').setRequired(true));
 
 export async function execute(interaction) {
-  const target = interaction.options.getUser('user');
-  const reason = interaction.options.getString('reason') || 'No reason provided';
-  const caseId = `CASE${Date.now()}`;
-
-  await Case.create({
-    caseId,
-    userId: target.id,
-    username: target.tag,
-    type: 'Warn',
-    reason,
-    moderatorId: interaction.user.id,
-    moderatorTag: interaction.user.tag
-  });
+  const target = interaction.options.getUser('target');
+  const reason = interaction.options.getString('reason');
 
   try {
-    await target.send(`⚠️ You were warned in **${interaction.guild.name}**.\nReason: ${reason}\nCase ID: ${caseId}`);
+    // DM the user
+    await target.send(
+      `⚠️ You have been warned in **${interaction.guild.name}** by **${interaction.user.tag}**\n\n` +
+      `**Reason:** ${reason}`
+    );
   } catch (err) {
-    console.error(`❌ Could not DM ${target.tag}:`, err);
+    console.warn(`⚠️ Could not DM ${target.tag}`);
   }
 
-  await interaction.reply(`✅ Warned ${target.tag}.\nCase ID: \`${caseId}\``);
+  // Log to DB
+  await Case.create({
+    caseId: `CASE${Date.now()}`,
+    userId: target.id,
+    moderatorId: interaction.user.id,
+    action: 'Warn',
+    reason
+  });
+
+  await interaction.reply({ content: `✅ ${target.tag} has been warned.`, ephemeral: true });
 }

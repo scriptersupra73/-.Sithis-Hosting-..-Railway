@@ -4,7 +4,7 @@ import Case from '../models/Case.js';
 export const data = new SlashCommandBuilder()
   .setName('appeal')
   .setDescription('Submit an appeal for a mod action')
-  .setDMPermission(true); // ✅ enables use in DMs
+  .setDMPermission(true); // enable dm use
 
 export async function execute(interaction) {
   const userId = interaction.user.id;

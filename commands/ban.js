@@ -3,31 +3,39 @@ import Case from '../models/Case.js';
 
 export const data = new SlashCommandBuilder()
   .setName('ban')
-  .setDescription('Ban a user and log the case')
-  .addUserOption(opt => opt.setName('user').setDescription('User to ban').setRequired(true))
-  .addStringOption(opt => opt.setName('reason').setDescription('Reason for ban'));
+  .setDescription('Ban a member')
+  .addUserOption(option =>
+    option.setName('target').setDescription('User to ban').setRequired(true))
+  .addStringOption(option =>
+    option.setName('reason').setDescription('Reason for ban').setRequired(true));
 
 export async function execute(interaction) {
-  const target = interaction.options.getUser('user');
-  const reason = interaction.options.getString('reason') || 'No reason provided';
-  const caseId = `CASE${Date.now()}`;
-
-  await Case.create({
-    caseId,
-    userId: target.id,
-    username: target.tag,
-    type: 'Ban',
-    reason,
-    moderatorId: interaction.user.id,
-    moderatorTag: interaction.user.tag
-  });
+  const target = interaction.options.getUser('target');
+  const reason = interaction.options.getString('reason');
+  const member = await interaction.guild.members.fetch(target.id);
 
   try {
-    await interaction.guild.members.ban(target, { reason });
-    await target.send(`⚠️ You were banned from ${interaction.guild.name}.\nReason: ${reason}\nCase ID: ${caseId}`);
+    // DM the user before banning
+    await target.send(
+      `⚠️ You have been banned.\n\n` +
+      `You were banned from **${interaction.guild.name}** by **${interaction.user.tag}**\n\n` +
+      `**Reason:** ${reason}\n\n` +
+      `📨 Appeal:\nIf you believe this was in error, you may submit an appeal by sending \`/appeal\` to me in DMs. Include your case number and any relevant information.`
+    );
   } catch (err) {
-    console.error(`❌ Could not DM ${target.tag}:`, err);
+    console.warn(`⚠️ Could not DM ${target.tag}`);
   }
 
-  await interaction.reply(`✅ Banned ${target.tag}.\nCase ID: \`${caseId}\``);
+  await member.ban({ reason });
+
+  // Log to DB
+  await Case.create({
+    caseId: `CASE${Date.now()}`,
+    userId: target.id,
+    moderatorId: interaction.user.id,
+    action: 'Ban',
+    reason
+  });
+
+  await interaction.reply({ content: `✅ ${target.tag} has been banned.`, ephemeral: true });
 }

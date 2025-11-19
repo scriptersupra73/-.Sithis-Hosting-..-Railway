@@ -3,33 +3,43 @@ import Case from '../models/Case.js';
 
 export const data = new SlashCommandBuilder()
   .setName('timeout')
-  .setDescription('Timeout a user and log the case')
-  .addUserOption(opt => opt.setName('user').setDescription('User to timeout').setRequired(true))
-  .addIntegerOption(opt => opt.setName('duration').setDescription('Duration in minutes').setRequired(true))
-  .addStringOption(opt => opt.setName('reason').setDescription('Reason for timeout'));
+  .setDescription('Timeout a member')
+  .addUserOption(option =>
+    option.setName('target').setDescription('User to timeout').setRequired(true))
+  .addIntegerOption(option =>
+    option.setName('duration').setDescription('Duration in minutes').setRequired(true))
+  .addStringOption(option =>
+    option.setName('reason').setDescription('Reason for timeout').setRequired(true));
 
 export async function execute(interaction) {
-  const target = interaction.options.getMember('user');
+  const target = interaction.options.getUser('target');
   const duration = interaction.options.getInteger('duration');
-  const reason = interaction.options.getString('reason') || 'No reason provided';
-  const caseId = `CASE${Date.now()}`;
-
-  await Case.create({
-    caseId,
-    userId: target.id,
-    username: target.user.tag,
-    type: 'Timeout',
-    reason,
-    moderatorId: interaction.user.id,
-    moderatorTag: interaction.user.tag
-  });
+  const reason = interaction.options.getString('reason');
+  const member = await interaction.guild.members.fetch(target.id);
 
   try {
-    await target.timeout(duration * 60 * 1000, reason);
-    await target.send(`⏱️ You were timed out in **${interaction.guild.name}** for ${duration} minutes.\nReason: ${reason}\nCase ID: ${caseId}`);
+    // DM the user
+    await target.send(
+      `⏳ You have been timed out in **${interaction.guild.name}** by **${interaction.user.tag}**\n\n` +
+      `**Reason:** ${reason}\n` +
+      `**Duration:** ${duration} minutes`
+    );
   } catch (err) {
-    console.error(`❌ Could not DM ${target.user.tag}:`, err);
+    console.warn(`⚠️ Could not DM ${target.tag}`);
   }
 
-  await interaction.reply(`✅ Timed out ${target.user.tag} for ${duration} minutes.\nCase ID: \`${caseId}\``);
+  // Apply timeout
+  const ms = duration * 60 * 1000;
+  await member.timeout(ms, reason);
+
+  // Log to DB
+  await Case.create({
+    caseId: `CASE${Date.now()}`,
+    userId: target.id,
+    moderatorId: interaction.user.id,
+    action: 'Timeout',
+    reason
+  });
+
+  await interaction.reply({ content: `✅ ${target.tag} has been timed out for ${duration} minutes.`, ephemeral: true });
 }
